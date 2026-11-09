@@ -7,12 +7,12 @@ WEB_ORIGIN=http://localhost:5173
 DATABASE_URL="postgresql://neondb_owner:npg_g4t1nUzpxCDm@ep-noisy-boat-be6rdizt.c-9.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
 DATABASE_URL_POOLED="postgresql://neondb_owner:npg_g4t1nUzpxCDm@ep-noisy-boat-be6rdizt-pooler.c-9.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
 
-# Storage — S3-compatible object storage
+# Storage — S3-compatible object storage. Generate a credential to fill in the key ID + secret.
 AWS_ENDPOINT_URL_S3="https://br-weathered-haze-beioyg1t.storage.c-9.us-east-2.aws.neon.tech"
 AWS_ACCESS_KEY_ID="nak_live_2c7c684353994e829cf8a8f857660fee"
 AWS_SECRET_ACCESS_KEY="nsk_live_52ba3d4cdc9e4dac69428a225b9656ab3257b8c669b08b93601f56a10864ad8c"
 AWS_REGION="us-east-2"
-S3_BUCKET="school-assets"
+AWS_S3_BUCKET="school-assets"
 
 # Functions — serverless endpoints
 # Deploy a neon function with the 'neon deploy' cli command or deploy a function from one of Neon's sample templates with 'neon bootstrap'
@@ -68,3 +68,8 @@ SMTP_SECURE=false
 SMTP_USER="murichuchichi@gmail.com"
 SMTP_PASSWORD="lrek jmbz cdrk otnh"
 AUTH_EMAIL_FROM="<School SMIS>murichuchichi@gmail.com"
+
+R2_ACCOUNT_ID=b6ab49efa60bca95a16eaba8b71091b1
+R2_ACCESS_KEY_ID=a65ccbe8a49109505245c94de13d5f23
+R2_SECRET_ACCESS_KEY=2d60da30314948d41bd211233cc6ea351c6440b7ca83c25c69afb2045198d9b9
+R2_BUCKET_NAME=school-files
