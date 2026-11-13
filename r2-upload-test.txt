@@ -1,3 +1,0 @@
-R2 storage upload test
-Created: 2026-11-09
-This file verifies upload and read-back of a text/plain object in Cloudflare R2.

@@ -16,7 +16,8 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
-import { sql, relations } from "drizzle-orm";
+import { sql } from "drizzle-orm";
+import { relations } from "drizzle-orm/_relations";
 
 export const roleEnum = pgEnum("Role", [
   "SUPER_ADMIN",
@@ -205,6 +206,24 @@ export const paymentStatusEnum = pgEnum("PaymentStatus", [
   "COMPLETED",
   "FAILED",
   "REFUNDED",
+]);
+export const mpesaOperationTypeEnum = pgEnum("MpesaOperationType", [
+  "STK_PUSH",
+  "STK_QUERY",
+  "B2C",
+  "REVERSAL",
+  "TRANSACTION_STATUS",
+  "STANDING_ORDER",
+  "STANDING_ORDER_EXECUTION",
+  "ACCOUNT_BALANCE",
+]);
+export const mpesaOperationStatusEnum = pgEnum("MpesaOperationStatus", [
+  "PENDING",
+  "SUCCEEDED",
+  "FAILED",
+  "TIMED_OUT",
+  "UNKNOWN",
+  "ACTIVE",
 ]);
 export const ledgerDirectionEnum = pgEnum("LedgerDirection", [
   "DEBIT",
@@ -578,6 +597,69 @@ export const schoolSettings = pgTable(
     uniqueIndex("school_settings_mpesa_shortcode_unique").on(
       table.mpesaShortcode,
     ),
+  ],
+);
+
+export const mpesaOperations = pgTable(
+  "mpesa_operations",
+  {
+    id: uuid("id").primaryKey(),
+    reference: text("reference").notNull(),
+    idempotencyKey: text("idempotency_key"),
+    requestFingerprint: text("request_fingerprint"),
+    operationType: mpesaOperationTypeEnum("operation_type").notNull(),
+    status: mpesaOperationStatusEnum("status").notNull().default("PENDING"),
+    phone: text("phone"),
+    amount: integer("amount"),
+    merchantReference: text("merchant_reference"),
+    relatedTransactionId: text("related_transaction_id"),
+    checkoutRequestId: text("checkout_request_id"),
+    merchantRequestId: text("merchant_request_id"),
+    conversationId: text("conversation_id"),
+    originatorConversationId: text("originator_conversation_id"),
+    mpesaReceiptNumber: text("mpesa_receipt_number"),
+    resultCode: integer("result_code"),
+    resultDesc: text("result_desc"),
+    currency: text("currency").notNull().default("KES"),
+    providerResponse: jsonb("provider_response").$type<Record<string, unknown>>(),
+    callbackPayload: jsonb("callback_payload").$type<Record<string, unknown>>(),
+    callbackProcessedAt: timestamp("callback_processed_at", {
+      withTimezone: true,
+    }),
+    requestedAt: timestamp("requested_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("mpesa_operations_reference_unique").on(table.reference),
+    uniqueIndex("mpesa_operations_idempotency_key_unique").on(
+      table.idempotencyKey,
+    ),
+    uniqueIndex("mpesa_operations_checkout_request_id_unique").on(
+      table.checkoutRequestId,
+    ),
+    uniqueIndex("mpesa_operations_active_reversal_unique")
+      .on(table.relatedTransactionId)
+      .where(
+        sql`${table.operationType} = 'REVERSAL' and ${table.status} in ('PENDING', 'UNKNOWN', 'TIMED_OUT', 'SUCCEEDED')`,
+      ),
+    index("mpesa_operations_type_status_idx").on(
+      table.operationType,
+      table.status,
+    ),
+    index("mpesa_operations_conversation_id_idx").on(table.conversationId),
+    index("mpesa_operations_originator_conversation_id_idx").on(
+      table.originatorConversationId,
+    ),
+    index("mpesa_operations_receipt_idx").on(table.mpesaReceiptNumber),
+    index("mpesa_operations_phone_created_idx").on(table.phone, table.createdAt),
   ],
 );
 

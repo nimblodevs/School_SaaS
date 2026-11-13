@@ -4,20 +4,30 @@ PORT=5000
 WEB_ORIGIN=http://localhost:5173
 
 # Postgres — your database connection
+# DATABASE_URL is the direct connection; DATABASE_URL_POOLED is intended for app traffic.
 DATABASE_URL="postgresql://neondb_owner:npg_g4t1nUzpxCDm@ep-noisy-boat-be6rdizt.c-9.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
 DATABASE_URL_POOLED="postgresql://neondb_owner:npg_g4t1nUzpxCDm@ep-noisy-boat-be6rdizt-pooler.c-9.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
 
+# Storage — S3-compatible object storage
+# Choose exactly one provider: neon (Neon Object Storage) or r2 (Cloudflare R2).
+FILE_STORAGE_PROVIDER=r2
 # Storage — S3-compatible object storage. Generate a credential to fill in the key ID + secret.
 AWS_ENDPOINT_URL_S3="https://br-weathered-haze-beioyg1t.storage.c-9.us-east-2.aws.neon.tech"
 AWS_ACCESS_KEY_ID="nak_live_2c7c684353994e829cf8a8f857660fee"
 AWS_SECRET_ACCESS_KEY="nsk_live_52ba3d4cdc9e4dac69428a225b9656ab3257b8c669b08b93601f56a10864ad8c"
 AWS_REGION="us-east-2"
 AWS_S3_BUCKET="school-assets"
+# Cloudflare R2 — generate a credential to fill in the key ID + secret.
+R2_ACCOUNT_ID=b6ab49efa60bca95a16eaba8b71091b1
+R2_ACCESS_KEY_ID=a65ccbe8a49109505245c94de13d5f23
+R2_SECRET_ACCESS_KEY=2d60da30314948d41bd211233cc6ea351c6440b7ca83c25c69afb2045198d9b9
+R2_BUCKET_NAME=school-files
 
 # Functions — serverless endpoints
 # Deploy a neon function with the 'neon deploy' cli command or deploy a function from one of Neon's sample templates with 'neon bootstrap'
 
 # Realtime — live SQL query subscriptions
+# Use the endpoint and matching secret issued for this Neon project.
 NEON_REALTIME_URL="https://ep-noisy-boat-be6rdizt.rt.c-9.us-east-2.aws.neon.tech/"
 NEON_REALTIME_SECRET="nrt_live_1Uv9jX5Z_ZfO_c_ulJTJVCpJrCx4XdCqYPQphOAQdwtE"
 
@@ -29,10 +39,20 @@ OTEL_PROMETHEUS_HOST=0.0.0.0
 OTEL_PROMETHEUS_PORT=9464
 GRAFANA_ADMIN_PASSWORD=school-saas-local
 
+# Observability — service identity, optional OTLP exporters, and Prometheus scrape endpoint.
+# GRAFANA_ADMIN_PASSWORD is for the local Grafana instance; use a strong secret in deployments.
+
 # Authentication code lifetime, rate limits, proxy trust, and local upload directory.
+# AUTH_OTP_PEPPER and JWT_SECRET must be private, stable secrets; do not use example values in production.
+# Login and OTP limits are counts per configured time window; durations are in minutes.
 LOGIN_OTP_MINUTES=3
-AUTH_OTP_PEPPER=replace-with-a-stable-random-secret-at-least-32-characters
-TRUST_PROXY=false
+AUTH_OTP_PEPPER="9DETmJ4yKoaP03LlowaPimRehxkCIoficfvOT2E3vSK"
+
+# Generate a random 32-character string for JWT_SECRET using the following command:
+# openssl rand -hex 16 | head -c 32
+JWT_SECRET="Eihi0fPNDbwFwXveC3oBzE4OeKTvr7A03NNpt4OyuES"
+
+TRUST_PROXY=1
 # false disables proxy trust; set a trusted hop count (for example 1) or proxy address/CIDR list only when deployed behind a proxy.
 LOCAL_UPLOAD_DIR=./uploads
 LOGIN_MAX_ATTEMPTS=5
@@ -51,25 +71,84 @@ LOG_LEVEL=info
 # -----------------------------------------------------------------------------
 # M-Pesa Configuration
 # -----------------------------------------------------------------------------
+# Select sandbox for testing; use production only with production credentials and callback URLs.
 MPESA_ENVIRONMENT="sandbox"
+# Required server-to-server key for initiating M-Pesa requests. Never expose it to browsers.
+MPESA_API_KEY="nNlNTu3kDsevAKuPsfPWWJCcAxXdrdvQHGSa11rtpoP"
+# Set exact Safaricom callback source IPs; configure TRUST_PROXY only for known proxies.
+# Use a pre-generated credential or provide the initiator password and environment certificate.
+MPESA_ALLOWED_IPS="[196.201.214.200],
+  [196.201.214.206],
+  [196.201.213.114],
+  [196.201.214.207],
+  [196.201.214.208],
+  [196.201.214.209]
+"
+# Sandbox Credentials (StkPush)
+# Consumer credentials and shortcode/passkey authorize STK Push requests.
+# The callback must be a publicly reachable HTTPS endpoint in deployed environments.
 MPESA_CONSUMER_KEY="2Wbdl9OD0hZ5tkWJydsgQMqSyY4sOhNxQAJTcnDl8VakDvAU"
 MPESA_CONSUMER_SECRET="HWkrkhMCKWujptSCCumQRX7zBVC1RFrV8waJkZgAwg1JwGcjlzh39cpFIIUD7Ktc"
 MPESA_SHORTCODE="174379"
 MPESA_PASSKEY="bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919"
-MPESA_CALLBACK_URL="https://yourdomain.com/mpesa/callback"
-MPESA_INITIATOR_NAME="your_mpesa_initiator_name_here"
-MPESA_SECURITY_CREDENTIAL="your_mpesa_security_credential_here"
-MPESA_ALLOWED_IPS="your_allowed_ips_here"
+MPESA_CALLBACK_URL="https://790d-197-138-13-254.ngrok-free.app/api/v1/fees/mpesa/callback"
+
+# Reversal Credentials
+# Configure publicly reachable HTTPS result and timeout callback URLs for reversal requests.
+MPESA_REVERSAL_RESULT_URL="https://790d-197-138-13-254.ngrok-free.app/api/mpesa/reversal/result"
+MPESA_REVERSAL_TIMEOUT_URL="https://790d-197-138-13-254.ngrok-free.app/api/mpesa/reversal/queue"
+MPESA_REVERSAL_CALLBACK_URL="https://790d-197-138-13-254.ngrok-free.app/api/mpesa/reversal/callback"
+
+# ⚠ DO NOT HARD CODE PASSWORD IN PRODUCTION
+# Use vault / secret manager later
+MPESA_INITIATOR_PASSWORD=Safaricom123!!
+
+# B2C Credentials
+# Initiator credentials authorize business-to-customer payments; callback URLs receive result and timeout notices.
+MPESA_INITIATOR_NAME=testapi
+MPESA_B2C_RESULT_URL="https://790d-197-138-13-254.ngrok-free.app/api/mpesa/b2c/callback"
+MPESA_B2C_TIMEOUT_URL="https://790d-197-138-13-254.ngrok-free.app/api/mpesa/b2c/timeout"
+
+# Transaction Status Credentials
+# Callback URLs receive the result or timeout for transaction-status queries.
+MPESA_TRANSACTIONSTATUS_RESULT_URL="https://790d-197-138-13-254.ngrok-free.app/api/mpesa/transaction/status/callback"
+MPESA_TRANSACTIONSTATUS_TIMEOUT_URL="https://790d-197-138-13-254.ngrok-free.app/api/mpesa/transaction/status/timeout"
+
+# mpesa Ratiba
+# Callback URL for scheduled-payment notifications.
+MPESA_RATIBA_CALLBACK_URL="https://790d-197-138-13-254.ngrok-free.app/api/mpesa/ratiba/callback"
+
+# Account Balance
+# Queue-timeout and result callback URLs for account-balance queries.
+MPESA_QUEUE_TIMEOUT_URL="https://790d-197-138-13-254.ngrok-free.app/api/mpesa/account/balance/timeout"
+MPESA_RESULT_URL="https://790d-197-138-13-254.ngrok-free.app/api/mpesa/account/balance/result"
+
+# MPESA_CERT_PATH=./cert/production.cer
+# Put certificates inside:
+# server/certs/
+MPESA_CERT_PATH=certs/sandbox.cer 
+
+
+# Ngrok 
+# Enable only for local callback testing; keep the auth token secret.
+# Set USE_NGROK=true to use NGROK_URL or create a tunnel with NGROK_AUTHTOKEN.
+# With USE_NGROK=false, both Ngrok settings are ignored.
+USE_NGROK=true
+NGROK_AUTHTOKEN="2lNcFqmXYHLtgmDoqZJLWhUWala_56vmpsZKN8QTAoGddVaJm"
+NGROK_URL="https://790d-197-138-13-254.ngrok-free.app "
 
 # SMTP email delivery for email verification and password recovery.
+# SMTP_SECURE is usually true for implicit TLS (port 465) and false for STARTTLS (port 587).
 SMTP_HOST="smtp.gmail.com"
 SMTP_PORT=587
 SMTP_SECURE=false
 SMTP_USER="murichuchichi@gmail.com"
 SMTP_PASSWORD="lrek jmbz cdrk otnh"
-AUTH_EMAIL_FROM="<School SMIS>murichuchichi@gmail.com"
+# "Display Name <email@domain.com>"
+AUTH_EMAIL_FROM="School SMIS <murichuchichi@gmail.com>"
 
 R2_ACCOUNT_ID=b6ab49efa60bca95a16eaba8b71091b1
 R2_ACCESS_KEY_ID=a65ccbe8a49109505245c94de13d5f23
 R2_SECRET_ACCESS_KEY=2d60da30314948d41bd211233cc6ea351c6440b7ca83c25c69afb2045198d9b9
 R2_BUCKET_NAME=school-files
+

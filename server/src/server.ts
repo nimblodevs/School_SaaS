@@ -2,21 +2,46 @@ import "./instrumentation.js";
 import app from "./app.js";
 import { env } from "./config/env.js";
 import { shutdownTracing } from "./config/tracing.js";
+import {
+  verifyStorageConnection as verifyNeonStorageConnection,
+} from "./services/neon.storage.js";
+import {
+  verifyStorageConnection as verifyR2StorageConnection,
+} from "./services/r2.storage.js";
+import { verifyEmailConnection } from "./services/email.service.js";
+import { startNgrok, stopNgrok } from "./services/ngrok.service.js";
 import { logger } from "./utils/logger.js";
 
+let isShuttingDown = false;
+
 const server = app.listen(env.PORT, () => {
-  logger.info(
-    { port: env.PORT, environment: env.NODE_ENV },
-    "HTTP server started",
-  );
+  if (!env.USE_NGROK) {
+    logger.info(
+      { port: env.PORT, environment: env.NODE_ENV },
+      "HTTP server started",
+    );
+  }
+  const storageConnectionCheck =
+    env.FILE_STORAGE_PROVIDER === "r2"
+      ? verifyR2StorageConnection()
+      : verifyNeonStorageConnection();
+  void storageConnectionCheck.catch((error) => {
+    logger.error(
+      { err: error, provider: env.FILE_STORAGE_PROVIDER },
+      "File storage connection verification failed",
+    );
+  });
+  void verifyEmailConnection().catch((error) => {
+    logger.error({ err: error }, "SMTP email connection verification failed");
+  });
+
+  startNgrok();
 });
 
 server.on("error", (error) => {
   logger.fatal({ err: error }, "HTTP server failed");
   process.exitCode = 1;
 });
-
-let isShuttingDown = false;
 
 async function shutdown(signal: NodeJS.Signals): Promise<void> {
   if (isShuttingDown) return;
@@ -28,12 +53,15 @@ async function shutdown(signal: NodeJS.Signals): Promise<void> {
     process.exit(1);
   }, 10_000);
 
+  await stopNgrok();
+
   server.close(async (error) => {
+    if (error) {
+      logger.error({ err: error }, "HTTP server failed to close cleanly");
+      process.exitCode = 1;
+    }
+
     try {
-      if (error) {
-        logger.error({ err: error }, "HTTP server failed to close cleanly");
-        process.exitCode = 1;
-      }
       await shutdownTracing();
       logger.info("HTTP server and OpenTelemetry shut down");
     } catch (shutdownError) {

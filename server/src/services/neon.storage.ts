@@ -1,6 +1,7 @@
 import {
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadBucketCommand,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
@@ -35,8 +36,14 @@ export interface NeonStorageUrlResult extends NeonStorageOperationResult {
 let client: S3Client | undefined;
 
 function getStorageConfig(): NeonStorageConfig {
+  if (env.FILE_STORAGE_PROVIDER !== "neon") {
+    throw new Error(
+      "File storage provider is not set to Neon Object Storage. Set FILE_STORAGE_PROVIDER=neon to use it.",
+    );
+  }
+
   const endpoint = env.AWS_ENDPOINT_URL_S3 ?? env.NEON_OBJECT_STORAGE_ENDPOINT;
-  const bucket = env.NEON_OBJECT_STORAGE_BUCKET ?? env.AWS_S3_BUCKET?? env.AWS_S3_BUCKET;
+  const bucket = env.NEON_OBJECT_STORAGE_BUCKET ?? env.AWS_S3_BUCKET;
   const accessKeyId =
     env.AWS_ACCESS_KEY_ID ?? env.NEON_OBJECT_STORAGE_ACCESS_KEY_ID;
   const secretAccessKey =
@@ -67,6 +74,19 @@ function getClient(): S3Client {
   }
 
   return client;
+}
+
+export async function verifyStorageConnection(): Promise<void> {
+  const { bucket } = getStorageConfig();
+  await getClient().send(
+    new HeadBucketCommand({
+      Bucket: bucket,
+    }),
+  );
+  logger.info(
+    { provider: "Neon Object Storage" },
+    "File storage provider connected",
+  );
 }
 
 async function readBodyAsBuffer(body: unknown): Promise<Buffer> {

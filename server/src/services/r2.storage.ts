@@ -1,5 +1,6 @@
 import {
   S3Client,
+  HeadBucketCommand,
   PutObjectCommand,
   GetObjectCommand,
   DeleteObjectCommand,
@@ -10,6 +11,12 @@ import { env } from "../config/env.js";
 import { logger } from "../utils/logger.js";
 
 function getR2Config() {
+  if (env.FILE_STORAGE_PROVIDER !== "r2") {
+    throw new Error(
+      "File storage provider is not set to Cloudflare R2. Set FILE_STORAGE_PROVIDER=r2 to use it.",
+    );
+  }
+
   const {
     R2_ACCOUNT_ID,
     R2_ACCESS_KEY_ID,
@@ -74,6 +81,16 @@ function getR2Client(): S3Client {
   }
 
   return r2Client;
+}
+
+export async function verifyStorageConnection(): Promise<void> {
+  const { bucketName } = getR2Config();
+  await getR2Client().send(
+    new HeadBucketCommand({
+      Bucket: bucketName,
+    }),
+  );
+  logger.info({ provider: "Cloudflare R2" }, "File storage provider connected");
 }
 
 async function readBodyAsBuffer(body: unknown): Promise<Buffer> {

@@ -4,10 +4,12 @@ interface OriginGuardOptions {
   allowedOrigins: string[];
   // Whether to allow requests with no Origin/Referer header (e.g., mobile apps, Postman, server-to-server)
   allowNoOrigin?: boolean;
+  allowNoOriginPaths?: string[];
 }
 
 export const originGuard = (options: OriginGuardOptions) => {
   const { allowedOrigins, allowNoOrigin = false } = options;
+  const allowNoOriginPaths = new Set(options.allowNoOriginPaths ?? []);
 
   return (req: Request, res: Response, next: NextFunction): void => {
     // 1. Skip check for safe, non-state-changing methods
@@ -22,7 +24,7 @@ export const originGuard = (options: OriginGuardOptions) => {
 
     // 2. Handle clients that do not send Origin or Referer (Non-browser clients)
     if (!origin && !referer) {
-      if (allowNoOrigin) {
+      if (allowNoOrigin || allowNoOriginPaths.has(req.path)) {
         return next();
       }
       res.status(403).json({
