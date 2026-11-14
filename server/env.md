@@ -1,7 +1,7 @@
-# Runtime mode and port; WEB_ORIGIN lists browser origins allowed by the API.
+# Runtime mode, port, and browser origins allowed to make credentialed API requests.
 NODE_ENV=development
 PORT=5000
-WEB_ORIGIN=http://localhost:5173
+ALLOWED_ORIGINS=http://localhost:5173
 
 # Postgres — your database connection
 # DATABASE_URL is the direct connection; DATABASE_URL_POOLED is intended for app traffic.
@@ -43,6 +43,8 @@ GRAFANA_ADMIN_PASSWORD=school-saas-local
 # GRAFANA_ADMIN_PASSWORD is for the local Grafana instance; use a strong secret in deployments.
 
 # Authentication code lifetime, rate limits, proxy trust, and local upload directory.
+# Cookie SameSite policy: lax for same-site apps; none for cross-site HTTPS apps.
+AUTH_COOKIE_SAME_SITE=lax
 # AUTH_OTP_PEPPER and JWT_SECRET must be private, stable secrets; do not use example values in production.
 # Login and OTP limits are counts per configured time window; durations are in minutes.
 LOGIN_OTP_MINUTES=3

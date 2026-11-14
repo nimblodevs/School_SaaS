@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { trace, SpanStatusCode, type Attributes } from "@opentelemetry/api";
-import type { ErrorRequestHandler, RequestHandler } from "express";
+import type { RequestHandler } from "express";
 import { shutdownOpenTelemetry } from "../instrumentation.js";
 import {
   getContextTraceId,
@@ -93,43 +93,6 @@ export function recordAuditTrace(
   activeSpan.addEvent(name, safeAttributes);
   return activeSpan.spanContext().traceId;
 }
-
-export const errorTrackingMiddleware: ErrorRequestHandler = (
-  error,
-  req,
-  res,
-  next,
-) => {
-  const traceId = trackError(error, {
-    method: req.method,
-    path: req.originalUrl,
-  });
-
-  if (res.headersSent) {
-    next(error);
-    return;
-  }
-
-  const statusCode =
-    typeof error === "object" &&
-    error !== null &&
-    "statusCode" in error &&
-    typeof error.statusCode === "number" &&
-    Number.isInteger(error.statusCode) &&
-    error.statusCode >= 400 &&
-    error.statusCode <= 599
-      ? error.statusCode
-      : 500;
-
-  res.status(statusCode).json({
-    error: statusCode >= 500 ? "Internal Server Error" : "Request Error",
-    message:
-      statusCode >= 500
-        ? "An unexpected error occurred."
-        : "The request could not be completed.",
-    ...(traceId ? { traceId } : {}),
-  });
-};
 
 export async function shutdownTracing(): Promise<void> {
   await shutdownOpenTelemetry();

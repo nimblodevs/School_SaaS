@@ -1,13 +1,31 @@
-import { drizzle } from "drizzle-orm/neon-http";
+import { neonConfig, Pool } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/neon-serverless";
 import { AppError } from "../utils/error/AppError.js";
 import { env } from "./env.js";
 
-const createDatabase = (connectionString: string) =>
-  drizzle(connectionString);
+const createDatabase = (connectionString: string) => {
+  if (!neonConfig.webSocketConstructor) {
+    const webSocketConstructor = globalThis.WebSocket;
+    if (!webSocketConstructor) {
+      throw new AppError(
+        "A WebSocket implementation is required for database transactions.",
+        503,
+      );
+    }
+    neonConfig.webSocketConstructor = webSocketConstructor;
+  }
 
-type Database = ReturnType<typeof createDatabase>;
+  const client = new Pool({ connectionString });
+  return { client, db: drizzle({ client }) };
+};
 
-let database: Database | undefined;
+type DatabaseConnection = ReturnType<typeof createDatabase>;
+type Database = DatabaseConnection["db"];
+export type DatabaseTransaction = Parameters<
+  Parameters<Database["transaction"]>[0]
+>[0];
+
+let connection: DatabaseConnection | undefined;
 
 export function getDatabase(): Database {
   const connectionString = env.DATABASE_URL_POOLED ?? env.DATABASE_URL;
@@ -15,6 +33,14 @@ export function getDatabase(): Database {
     throw new AppError("Database connection is not configured.", 503);
   }
 
-  database ??= createDatabase(connectionString);
-  return database;
+  connection ??= createDatabase(connectionString);
+  return connection.db;
+}
+
+export async function closeDatabase(): Promise<void> {
+  if (!connection) return;
+
+  const currentConnection = connection;
+  await currentConnection.client.end();
+  if (connection === currentConnection) connection = undefined;
 }

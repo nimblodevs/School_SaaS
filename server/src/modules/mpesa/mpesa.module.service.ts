@@ -176,7 +176,7 @@ async function findOriginalByReceipt(mpesaReceiptNumber: string) {
     .where(
       and(
         eq(mpesaOperations.mpesaReceiptNumber, mpesaReceiptNumber),
-        eq(mpesaOperations.status, "SUCCEEDED"),
+        eq(mpesaOperations.status, "COMPLETED"),
       ),
     )
     .limit(1);
@@ -195,7 +195,7 @@ async function findActiveReversal(relatedTransactionId: string) {
           "PENDING",
           "UNKNOWN",
           "TIMED_OUT",
-          "SUCCEEDED",
+          "COMPLETED",
         ]),
       ),
     )
@@ -229,14 +229,14 @@ function number(value: unknown): number | undefined {
 }
 
 function callbackResult(
-  status: "SUCCEEDED" | "FAILED" | "TIMED_OUT",
+  status: "COMPLETED" | "FAILED" | "TIMED_OUT",
   resultDesc?: string | null,
 ): { ResultCode: number; ResultDesc: string } {
   return {
     ResultCode: 0,
     ResultDesc:
       text(resultDesc) ??
-      (status === "SUCCEEDED"
+      (status === "COMPLETED"
         ? "Accepted"
         : status === "TIMED_OUT"
           ? "Timeout received"
@@ -637,8 +637,8 @@ export async function requestAccountBalance(input: AccountBalanceInput) {
   });
 }
 
-function statusFromResultCode(resultCode: number): "SUCCEEDED" | "FAILED" {
-  return resultCode === 0 ? "SUCCEEDED" : "FAILED";
+function statusFromResultCode(resultCode: number): "COMPLETED" | "FAILED" {
+  return resultCode === 0 ? "COMPLETED" : "FAILED";
 }
 
 async function updateFromCallback(
@@ -802,7 +802,7 @@ export async function processReversalCallback(payload: unknown) {
 function transactionStatus(value: unknown, resultCode: number) {
   const normalized = text(value)?.toLowerCase();
   if (normalized?.includes("complete") || normalized?.includes("success")) {
-    return "SUCCEEDED" as const;
+    return "COMPLETED" as const;
   }
   if (
     normalized?.includes("fail") ||
@@ -881,7 +881,7 @@ async function processTimeout(
       503,
     );
   }
-  if (operation.status !== "SUCCEEDED" && operation.status !== "FAILED") {
+  if (operation.status !== "COMPLETED" && operation.status !== "FAILED") {
     await updateOperation(operation.id, {
       status: "TIMED_OUT",
       resultCode: number(result.ResultCode) ?? null,
@@ -929,7 +929,7 @@ export async function processStandingOrderCallback(payload: unknown) {
     callbackPayload: body,
     completedAt: new Date(),
   });
-  return callbackResult(succeeded ? "SUCCEEDED" : "FAILED");
+  return callbackResult(succeeded ? "COMPLETED" : "FAILED");
 }
 
 export async function processStandingOrderExecutionCallback(payload: unknown) {
@@ -946,7 +946,7 @@ export async function processStandingOrderExecutionCallback(payload: unknown) {
   if (receiptNumber) {
     const existing = await findByReceiptNumber(receiptNumber);
     if (existing?.operationType === "STANDING_ORDER_EXECUTION") {
-      return callbackResult("SUCCEEDED");
+      return callbackResult("COMPLETED");
     }
     if (existing) {
       throw new AppError("Receipt is already associated with another operation.", 409);
@@ -963,7 +963,7 @@ export async function processStandingOrderExecutionCallback(payload: unknown) {
   }
   const resultCode = number(data.responseCode) ?? -1;
   const status = data.Status === "OKAY" && resultCode === 0
-    ? "SUCCEEDED"
+    ? "COMPLETED"
     : "FAILED";
   await createOperation({
     id: randomUUID(),

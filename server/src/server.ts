@@ -1,5 +1,6 @@
 import "./instrumentation.js";
 import app from "./app.js";
+import { closeDatabase } from "./config/database.js";
 import { env } from "./config/env.js";
 import { shutdownTracing } from "./config/tracing.js";
 import {
@@ -62,8 +63,9 @@ async function shutdown(signal: NodeJS.Signals): Promise<void> {
     }
 
     try {
+      await closeDatabase();
       await shutdownTracing();
-      logger.info("HTTP server and OpenTelemetry shut down");
+      logger.info("HTTP server, database, and OpenTelemetry shut down");
     } catch (shutdownError) {
       logger.error({ err: shutdownError }, "Graceful shutdown failed");
       process.exitCode = 1;

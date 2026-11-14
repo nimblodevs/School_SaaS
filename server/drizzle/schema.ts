@@ -2,7 +2,7 @@ import { pgEnum, pgTable, uuid, text, integer, jsonb, timestamp, uniqueIndex, in
 import { sql } from "drizzle-orm"
 
 export const mpesaOperationType = pgEnum("MpesaOperationType", ["STK_PUSH", "STK_QUERY", "B2C", "REVERSAL", "TRANSACTION_STATUS", "STANDING_ORDER", "STANDING_ORDER_EXECUTION", "ACCOUNT_BALANCE"])
-export const mpesaOperationStatus = pgEnum("MpesaOperationStatus", ["PENDING", "SUCCEEDED", "FAILED", "TIMED_OUT", "UNKNOWN", "ACTIVE"])
+export const mpesaOperationStatus = pgEnum("MpesaOperationStatus", ["PENDING", "COMPLETED", "FAILED", "TIMED_OUT", "UNKNOWN", "ACTIVE"])
 
 
 export const mpesaOperations = pgTable("mpesa_operations", {
@@ -32,7 +32,7 @@ export const mpesaOperations = pgTable("mpesa_operations", {
 	createdAt: timestamp("created_at", { withTimezone: true }).default(sql`now()`).notNull(),
 	updatedAt: timestamp("updated_at", { withTimezone: true }).default(sql`now()`).notNull(),
 }, (table) => [
-	uniqueIndex("mpesa_operations_active_reversal_unique").using("btree", table.relatedTransactionId.asc().nullsLast()).where(sql`((operation_type = 'REVERSAL'::"MpesaOperationType") AND (status = ANY (ARRAY['PENDING'::"MpesaOperationStatus", 'UNKNOWN'::"MpesaOperationStatus", 'TIMED_OUT'::"MpesaOperationStatus", 'SUCCEEDED'::"MpesaOperationStatus"])))`),
+	uniqueIndex("mpesa_operations_active_reversal_unique").using("btree", table.relatedTransactionId.asc().nullsLast()).where(sql`((operation_type = 'REVERSAL'::"MpesaOperationType") AND (status = ANY (ARRAY['PENDING'::"MpesaOperationStatus", 'UNKNOWN'::"MpesaOperationStatus", 'TIMED_OUT'::"MpesaOperationStatus", 'COMPLETED'::"MpesaOperationStatus"])))`),
 	uniqueIndex("mpesa_operations_checkout_request_id_unique").using("btree", table.checkoutRequestId.asc().nullsLast()),
 	index("mpesa_operations_conversation_id_idx").using("btree", table.conversationId.asc().nullsLast()),
 	uniqueIndex("mpesa_operations_idempotency_key_unique").using("btree", table.idempotencyKey.asc().nullsLast()),

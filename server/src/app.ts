@@ -1,17 +1,17 @@
 import "./instrumentation.js";
-import {
-  errorTrackingMiddleware,
-  requestTracingMiddleware,
-} from "./config/tracing.js";
+import { requestTracingMiddleware } from "./config/tracing.js";
 import express, { Application, Request, Response } from "express";
 import cors from "cors";
 import helmet from "helmet";
+import { errorMiddleware } from "./middlewares/error.middleware.js";
 import { originGuard } from "./middlewares/originGuard.middleware.js";
 import { env } from "./config/env.js";
 import mpesaRoutes, {
   legacyStkCallbackRouter,
 } from "./modules/mpesa/mpesa.routes.js";
-import filesRoutes from "./modules/files/files.routes.js";
+import authRoutes from "./modules/auth/auth.routes.js";
+import schoolRoutes from "./modules/school/school.routes.js";
+import usersRoutes from "./modules/users/users.routes.js";
 
 const app: Application = express();
 app.set("trust proxy", env.TRUST_PROXY);
@@ -72,11 +72,11 @@ app.get("/health", (req: Request, res: Response) => {
 
 // 5. API Routes Registration (Placeholder for modular routes)
 // M-Pesa requests use a service key; provider callbacks use an IP allowlist.
+app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/school", schoolRoutes);
+app.use("/api/v1/users", usersRoutes);
 app.use("/api/v1/mpesa", mpesaRoutes);
 app.use("/api/v1/fees/mpesa", legacyStkCallbackRouter);
-app.use("/api/v1/files", filesRoutes);
-// app.use("/api/v1/auth", authRoutes);
-// app.use("/api/v1/schools", schoolRoutes);
 
 // 6. 404 Not Found Handler
 app.use((req: Request, res: Response) => {
@@ -86,7 +86,7 @@ app.use((req: Request, res: Response) => {
   });
 });
 
-// 7. Global error tracking middleware
-app.use(errorTrackingMiddleware);
+// 7. Global error handling middleware
+app.use(errorMiddleware);
 
 export default app;

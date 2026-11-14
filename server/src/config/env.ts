@@ -62,6 +62,7 @@ const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().min(1).max(65535).default(5000),
   ALLOWED_ORIGINS: z.string().optional(),
+  AUTH_COOKIE_SAME_SITE: z.enum(["lax", "strict", "none"]).default("lax"),
   TRUST_PROXY: trustProxy,
   DATABASE_URL: optionalUrl,
   DATABASE_URL_POOLED: optionalUrl,

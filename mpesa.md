@@ -81,7 +81,7 @@ The operation status values are:
 | Status | Meaning |
 |---|---|
 | `PENDING` | Submitted or awaiting a callback. |
-| `SUCCEEDED` | A callback reported a successful result. |
+| `COMPLETED` | A callback reported a successful result. |
 | `FAILED` | Daraja or a callback reported failure. |
 | `TIMED_OUT` | A timeout callback was received. |
 | `UNKNOWN` | The outbound result could not be determined, such as after a network failure. Reconcile before retrying. |
@@ -101,7 +101,7 @@ a Daraja-style body such as:
 `ResultCode: 0` here means **the callback was processed**, not that the
 payment succeeded. The transaction outcome is recorded separately:
 
-- Daraja callback `ResultCode: 0` → `SUCCEEDED`
+- Daraja callback `ResultCode: 0` → `COMPLETED`
 - Non-zero callback `ResultCode` → `FAILED`
 - A timeout callback → `TIMED_OUT`
 

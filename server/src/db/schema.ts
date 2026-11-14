@@ -219,7 +219,7 @@ export const mpesaOperationTypeEnum = pgEnum("MpesaOperationType", [
 ]);
 export const mpesaOperationStatusEnum = pgEnum("MpesaOperationStatus", [
   "PENDING",
-  "SUCCEEDED",
+  "COMPLETED",
   "FAILED",
   "TIMED_OUT",
   "UNKNOWN",
@@ -504,6 +504,9 @@ export const users = pgTable(
     }),
     uniqueIndex("users_id_school_unique").on(table.id, table.schoolId),
     uniqueIndex("users_email_unique").on(table.email),
+    uniqueIndex("users_email_normalized_unique").on(
+      sql`lower(btrim(${table.email}))`,
+    ),
     uniqueIndex("users_username_unique").on(table.username),
     uniqueIndex("users_phone_unique").on(table.phone),
     uniqueIndex("users_google_subject_unique").on(table.googleSubject),
@@ -518,6 +521,10 @@ export const authSessions = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
+    schoolId: uuid("school_id").references(() => schools.id, {
+      onDelete: "cascade",
+    }),
+    refreshSessionId: uuid("refresh_session_id"),
     tokenHash: text("token_hash").notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -563,16 +570,120 @@ export const schoolUserMemberships = pgTable(
     schoolId: uuid("school_id")
       .notNull()
       .references(() => schools.id, { onDelete: "cascade" }),
+    role: roleEnum("role").notNull().default("STAFF"),
+    isActive: boolean("is_active").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
   },
   (table) => [
+    uniqueIndex("school_user_memberships_id_school_unique").on(
+      table.id,
+      table.schoolId,
+    ),
     uniqueIndex("school_user_memberships_user_school_unique").on(
       table.userId,
       table.schoolId,
     ),
     index("school_user_memberships_school_id_idx").on(table.schoolId),
+  ],
+);
+
+export const schoolCurriculums = pgTable(
+  "school_curriculums",
+  {
+    id: uuid("id").primaryKey(),
+    schoolId: uuid("school_id")
+      .notNull()
+      .references(() => schools.id, { onDelete: "cascade" }),
+    curriculum: curriculumEnum("curriculum").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("school_curriculums_id_school_unique").on(
+      table.id,
+      table.schoolId,
+    ),
+    uniqueIndex("school_curriculums_school_curriculum_unique").on(
+      table.schoolId,
+      table.curriculum,
+    ),
+  ],
+);
+
+export const schoolBranchCurriculums = pgTable(
+  "school_branch_curriculums",
+  {
+    id: uuid("id").primaryKey(),
+    schoolId: uuid("school_id").notNull(),
+    branchId: uuid("branch_id").notNull(),
+    schoolCurriculumId: uuid("school_curriculum_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.branchId, table.schoolId],
+      foreignColumns: [schoolBranches.id, schoolBranches.schoolId],
+      name: "school_branch_curriculums_branch_school_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.schoolCurriculumId, table.schoolId],
+      foreignColumns: [schoolCurriculums.id, schoolCurriculums.schoolId],
+      name: "school_branch_curriculums_curriculum_school_fk",
+    }).onDelete("cascade"),
+    uniqueIndex("school_branch_curriculums_unique").on(
+      table.branchId,
+      table.schoolCurriculumId,
+    ),
+    uniqueIndex("school_branch_curriculums_scope_fk_unique").on(
+      table.branchId,
+      table.schoolCurriculumId,
+      table.schoolId,
+    ),
+    index("school_branch_curriculums_school_id_idx").on(table.schoolId),
+  ],
+);
+
+export const schoolUserBranchCurriculums = pgTable(
+  "school_user_branch_curriculums",
+  {
+    id: uuid("id").primaryKey(),
+    membershipId: uuid("membership_id").notNull(),
+    schoolId: uuid("school_id").notNull(),
+    branchId: uuid("branch_id").notNull(),
+    schoolCurriculumId: uuid("school_curriculum_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    foreignKey({
+      columns: [table.membershipId, table.schoolId],
+      foreignColumns: [
+        schoolUserMemberships.id,
+        schoolUserMemberships.schoolId,
+      ],
+      name: "school_user_branch_curriculums_membership_school_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [table.branchId, table.schoolCurriculumId, table.schoolId],
+      foreignColumns: [
+        schoolBranchCurriculums.branchId,
+        schoolBranchCurriculums.schoolCurriculumId,
+        schoolBranchCurriculums.schoolId,
+      ],
+      name: "school_user_branch_curriculums_branch_curriculum_school_fk",
+    }).onDelete("cascade"),
+    uniqueIndex("school_user_branch_curriculums_unique").on(
+      table.membershipId,
+      table.branchId,
+      table.schoolCurriculumId,
+    ),
+    index("school_user_branch_curriculums_school_id_idx").on(table.schoolId),
   ],
 );
 
@@ -648,7 +759,7 @@ export const mpesaOperations = pgTable(
     uniqueIndex("mpesa_operations_active_reversal_unique")
       .on(table.relatedTransactionId)
       .where(
-        sql`${table.operationType} = 'REVERSAL' and ${table.status} in ('PENDING', 'UNKNOWN', 'TIMED_OUT', 'SUCCEEDED')`,
+        sql`${table.operationType} = 'REVERSAL' and ${table.status} in ('PENDING', 'UNKNOWN', 'TIMED_OUT', 'COMPLETED')`,
       ),
     index("mpesa_operations_type_status_idx").on(
       table.operationType,
@@ -720,6 +831,9 @@ export const refreshSessions = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
+    schoolId: uuid("school_id").references(() => schools.id, {
+      onDelete: "cascade",
+    }),
     tokenHash: text("token_hash").notNull(),
     familyId: uuid("family_id").notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),

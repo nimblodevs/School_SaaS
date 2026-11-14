@@ -1,14 +1,49 @@
-function escapeHtml(value) {
-    return String(value ?? '').replace(/[&<>"']/g, (character) => ({
+type EmailLayoutInput = {
+    preheader: string;
+    title: string;
+    greeting?: string;
+    content: string;
+    footer?: string;
+};
+
+type CodeEmailInput = {
+    title: string;
+    description: string;
+    otp: string;
+    expiresInMinutes: string | number;
+    preheader: string;
+    footer: string;
+};
+
+type OtpEmailInput = {
+    otp: string;
+    expiresInMinutes: string | number;
+};
+
+type TemporaryCredentialsEmailInput = {
+    firstName: string;
+    role: string;
+    email: string;
+    temporaryPassword: string;
+};
+
+type ParentActivationEmailInput = {
+    firstName: string;
+    token: string;
+};
+
+function escapeHtml(value: unknown): string {
+    const entities: Record<string, string> = {
         '&': '&amp;',
         '<': '&lt;',
         '>': '&gt;',
         '"': '&quot;',
         "'": '&#39;',
-    })[character]);
+    };
+    return String(value ?? '').replace(/[&<>"']/g, (character) => entities[character] ?? character);
 }
 
-function emailLayout({ preheader, title, greeting, content, footer = 'If you did not request this, you can safely ignore this email.' }) {
+function emailLayout({ preheader, title, greeting, content, footer = 'If you did not request this, you can safely ignore this email.' }: EmailLayoutInput): string {
     return `<!doctype html>
 <html lang="en">
   <head>
@@ -43,7 +78,7 @@ function emailLayout({ preheader, title, greeting, content, footer = 'If you did
 </html>`;
 }
 
-function codeEmail({ title, description, otp, expiresInMinutes, preheader, footer }) {
+function codeEmail({ title, description, otp, expiresInMinutes, preheader, footer }: CodeEmailInput): string {
     return emailLayout({
         preheader,
         title,
@@ -57,7 +92,7 @@ function codeEmail({ title, description, otp, expiresInMinutes, preheader, foote
     });
 }
 
-export function loginOtpEmailTemplate({ otp, expiresInMinutes }) {
+export function loginOtpEmailTemplate({ otp, expiresInMinutes }: OtpEmailInput): string {
     return codeEmail({
         preheader: 'Your School SMIS login verification code.',
         title: 'Verify your sign-in',
@@ -68,7 +103,7 @@ export function loginOtpEmailTemplate({ otp, expiresInMinutes }) {
     });
 }
 
-export function emailVerificationEmailTemplate({ otp, expiresInMinutes }) {
+export function emailVerificationEmailTemplate({ otp, expiresInMinutes }: OtpEmailInput): string {
     return codeEmail({
         preheader: 'Verify your School SMIS email address.',
         title: 'Verify your email',
@@ -79,7 +114,7 @@ export function emailVerificationEmailTemplate({ otp, expiresInMinutes }) {
     });
 }
 
-export function passwordResetEmailTemplate({ otp, expiresInMinutes }) {
+export function passwordResetEmailTemplate({ otp, expiresInMinutes }: OtpEmailInput): string {
     return codeEmail({
         preheader: 'Your School SMIS password reset code.',
         title: 'Reset your password',
@@ -90,7 +125,12 @@ export function passwordResetEmailTemplate({ otp, expiresInMinutes }) {
     });
 }
 
-export function temporaryCredentialsEmailTemplate({ firstName, role, email, temporaryPassword }) {
+export function temporaryCredentialsEmailTemplate({
+    firstName,
+    role,
+    email,
+    temporaryPassword,
+}: TemporaryCredentialsEmailInput): string {
     return emailLayout({
         preheader: 'Your School SMIS account has been created.',
         title: 'Your account is ready',
@@ -107,7 +147,7 @@ export function temporaryCredentialsEmailTemplate({ firstName, role, email, temp
     });
 }
 
-export function parentActivationEmailTemplate({ firstName, token }) {
+export function parentActivationEmailTemplate({ firstName, token }: ParentActivationEmailInput): string {
     return emailLayout({
         preheader: 'Activate your School SMIS parent account.',
         title: 'Activate your parent account',
